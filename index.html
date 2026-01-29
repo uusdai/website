@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UUSD - Unity USD | The Settlement Layer for AI Economy</title>
-    <meta name="description" content="UUSD is a decentralized stablecoin designed as the foundational settlement infrastructure for the emerging AI economy. Trade UUSD on BSC.">
+    <meta name="description" content="UUSD is a decentralized stablecoin designed as the foundational settlement infrastructure for the emerging AI economy.">
     <meta name="keywords" content="UUSD, stablecoin, AI economy, cryptocurrency, BSC, BNB Smart Chain, DeFi">
 
     <!-- Open Graph -->
@@ -19,12 +19,12 @@
     <meta name="twitter:description" content="Decentralized stablecoin for the AI economy">
 
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%2300f5ff'/><stop offset='100%25' style='stop-color:%23b14aed'/></linearGradient></defs><circle cx='50' cy='50' r='45' fill='url(%23g)'/><text x='50' y='65' font-family='Arial' font-size='35' font-weight='bold' fill='%230a0a0f' text-anchor='middle'>U</text></svg>">
+    <link rel="icon" type="image/png" href="assets/logo.png">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
 
     <!-- Styles -->
     <link rel="stylesheet" href="css/style.css">
@@ -33,7 +33,10 @@
     <!-- Header -->
     <header>
         <nav class="container">
-            <a href="/" class="logo">UU<span>SD</span></a>
+            <a href="/" class="logo">
+                <img src="assets/logo.png" alt="UUSD Logo">
+                <span class="logo-text">UNITY <span>USD</span></span>
+            </a>
 
             <ul class="nav-links">
                 <li><a href="#features">Features</a></li>
@@ -44,7 +47,7 @@
             </ul>
 
             <div class="nav-cta">
-                <a href="#swap" class="btn btn-primary btn-sm btn-glow">Get UUSD</a>
+                <a href="#swap" class="btn btn-primary btn-sm">Get UUSD</a>
             </div>
 
             <div class="menu-toggle">
@@ -58,10 +61,14 @@
     <main>
         <!-- Hero Section -->
         <section class="hero">
-            <div class="grid-bg"></div>
-            <canvas id="particles-canvas"></canvas>
+            <div class="corner-decoration corner-tl"></div>
+            <div class="corner-decoration corner-tr"></div>
+            <div class="corner-decoration corner-bl"></div>
+            <div class="corner-decoration corner-br"></div>
 
             <div class="hero-content">
+                <img src="assets/logo.png" alt="UUSD" class="hero-logo">
+
                 <div class="hero-badge">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="10"/>
@@ -70,14 +77,14 @@
                     AI-Native Settlement Layer
                 </div>
 
-                <h1>The Settlement Layer<br>for <span class="typewriter-text">AI Economy</span></h1>
+                <h1>The Settlement Layer<br>for <span class="highlight">AI Economy</span></h1>
 
                 <p class="hero-subtitle">
                     UUSD is a decentralized stablecoin enabling humans and AI agents to participate equally in economic activities through peer-to-peer transactions.
                 </p>
 
                 <div class="hero-buttons">
-                    <a href="#swap" class="btn btn-primary btn-glow">
+                    <a href="#swap" class="btn btn-primary">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
                         </svg>
@@ -101,7 +108,7 @@
             <div class="container">
                 <div class="stats-grid">
                     <div class="stat-item fade-in">
-                        <div class="stat-value" data-counter="1000000000">1B</div>
+                        <div class="stat-value">1B</div>
                         <div class="stat-label">Total Supply</div>
                     </div>
                     <div class="stat-item fade-in">
@@ -318,7 +325,7 @@
                             <div class="token-input-row">
                                 <input type="number" id="to-amount" class="token-input" placeholder="0.0" readonly>
                                 <button id="to-token-selector" class="token-selector">
-                                    <div class="token-logo" style="background: linear-gradient(135deg, #00f5ff, #b14aed); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #0a0a0f; font-size: 12px;">U</div>
+                                    <img class="token-logo" src="assets/logo.png" alt="UUSD" style="background: #f5f1e3;">
                                     <span class="token-symbol">UUSD</span>
                                     <svg class="token-dropdown" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <polyline points="6 9 12 15 18 9"/>
@@ -353,17 +360,17 @@
                         </div>
 
                         <!-- Connect Wallet Button -->
-                        <button id="connect-wallet-btn" class="btn btn-primary btn-glow swap-btn">
+                        <button id="connect-wallet-btn" class="btn btn-primary swap-btn">
                             Connect Wallet
                         </button>
 
                         <!-- Swap Button -->
-                        <button id="swap-btn" class="btn btn-primary btn-glow swap-btn" style="display: none;">
+                        <button id="swap-btn" class="btn btn-primary swap-btn" style="display: none;">
                             Enter Amount
                         </button>
                     </div>
 
-                    <p class="text-muted text-center mt-4" style="font-size: 12px;">
+                    <p class="text-muted text-center mt-4" style="font-size: 12px; color: var(--green-pale);">
                         Trading on PancakeSwap V2 Router. You will need BNB for gas fees.
                     </p>
                 </div>
@@ -406,7 +413,7 @@
                     </div>
                 </div>
                 <div class="token-list-item" data-token="UUSD">
-                    <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #00f5ff, #b14aed); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #0a0a0f; font-size: 16px;">U</div>
+                    <img src="assets/logo.png" alt="UUSD" style="background: #f5f1e3; padding: 2px;">
                     <div class="token-list-info">
                         <div class="token-list-name">UUSD</div>
                         <div class="token-list-fullname">Unity USD</div>
@@ -420,7 +427,10 @@
     <footer>
         <div class="container">
             <div class="footer-content">
-                <div class="footer-logo">UU<span>SD</span></div>
+                <div class="footer-logo">
+                    <img src="assets/logo.png" alt="UUSD Logo">
+                    <span class="footer-logo-text">UNITY <span>USD</span></span>
+                </div>
                 <div class="footer-links">
                     <a href="https://bitcointalk.org/index.php?topic=5564031.msg65989162" target="_blank">Genesis</a>
                     <a href="https://github.com/uusdai/uusd/blob/main/docs/whitepaper.pdf" target="_blank">Whitepaper</a>
