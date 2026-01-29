@@ -18,8 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize mobile menu
     initMobileMenu();
 
-    // Add scroll effect to header
-    initHeaderScroll();
+    // Header style is now fixed, no scroll effect needed
 
     // Initialize wallet UI updates
     updateWalletUI();
@@ -242,11 +241,6 @@ toastStyles.textContent = `
         }
     }
 
-    /* Header scrolled state */
-    header.scrolled {
-        background: rgba(10, 10, 15, 0.95);
-        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
-    }
 `;
 document.head.appendChild(toastStyles);
 

@@ -58,8 +58,11 @@ class HeroAnimation {
 
     createSymbols() {
         this.symbols = [];
-        const symbolCount = Math.floor(this.canvas.width / 25);
-        const chars = ['$', '$', '$', '¢', '₿', 'Ξ', '¥', '€', '£', 'U', 'U', '∞', '◈'];
+        // Responsive symbol count: fewer on mobile, moderate on desktop
+        const isMobile = this.canvas.width < 768;
+        const baseCount = isMobile ? 12 : Math.floor(this.canvas.width / 50);
+        const symbolCount = Math.min(baseCount, 30); // Cap at 30 symbols max
+        const chars = ['$', '$', '¢', '₿', '¥', '€', '£', 'U', '∞', '◈'];
 
         for (let i = 0; i < symbolCount; i++) {
             this.symbols.push({
@@ -80,7 +83,9 @@ class HeroAnimation {
 
     createParticles() {
         this.particles = [];
-        const particleCount = 80;
+        // Responsive particle count: fewer on mobile
+        const isMobile = this.canvas.width < 768;
+        const particleCount = isMobile ? 30 : 50;
 
         for (let i = 0; i < particleCount; i++) {
             this.particles.push({
@@ -203,7 +208,9 @@ class HeroAnimation {
     }
 
     drawDataFlow() {
-        const streamCount = 8;
+        // Responsive stream count: fewer on mobile
+        const isMobile = this.canvas.width < 768;
+        const streamCount = isMobile ? 4 : 6;
 
         for (let i = 0; i < streamCount; i++) {
             const x = i < streamCount / 2
