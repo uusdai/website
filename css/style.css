@@ -387,9 +387,19 @@ nav {
     font-size: clamp(16px, 2vw, 20px);
     font-weight: 400;
     color: var(--text-secondary);
+    max-width: 640px;
+    margin: 0 auto 24px;
+    line-height: 1.7;
+}
+
+.hero-definition {
+    font-family: var(--font-display);
+    font-size: clamp(15px, 1.8vw, 18px);
+    font-weight: 500;
+    color: var(--green-dark);
     max-width: 600px;
     margin: 0 auto 48px;
-    line-height: 1.7;
+    line-height: 1.6;
 }
 
 .hero-buttons {
@@ -485,7 +495,55 @@ nav {
 }
 
 /* =====================================================
-   FEATURES SECTION
+   WHY SECTION
+   ===================================================== */
+.why-section {
+    padding: 100px 0;
+    background: var(--bg-primary);
+}
+
+.why-content {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.why-item {
+    margin-bottom: 32px;
+    padding-left: 24px;
+    border-left: 3px solid var(--green-medium);
+}
+
+.why-item p {
+    font-size: 20px;
+    line-height: 1.6;
+    color: var(--text-primary);
+}
+
+/* =====================================================
+   WHAT SECTION
+   ===================================================== */
+.what-section {
+    padding: 100px 0;
+    background: var(--bg-secondary);
+}
+
+.what-content {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.what-item {
+    margin-bottom: 24px;
+}
+
+.what-item p {
+    font-size: 18px;
+    line-height: 1.6;
+    color: var(--text-primary);
+}
+
+/* =====================================================
+   FEATURES / USE CASES SECTION
    ===================================================== */
 .features {
     padding: 120px 0;
