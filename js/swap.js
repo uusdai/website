@@ -23,7 +23,7 @@ class SwapManager {
         this.slippage = 0.5; // 0.5%
         this.deadline = 20; // 20 minutes
 
-        this.fromToken = 'BNB';
+        this.fromToken = 'USDT';
         this.toToken = 'UUSD';
         this.fromAmount = '';
         this.toAmount = '';
@@ -82,11 +82,6 @@ class SwapManager {
             if (e.target.id === 'token-modal') this.closeTokenModal();
         });
 
-        // Token list items
-        document.querySelectorAll('.token-list-item').forEach(item => {
-            item.addEventListener('click', (e) => this.selectToken(e.currentTarget.dataset.token));
-        });
-
         // Wallet events
         wallet.on('connect', () => this.onWalletConnect());
         wallet.on('disconnect', () => this.onWalletDisconnect());
@@ -135,6 +130,7 @@ class SwapManager {
             if (connectBtn) connectBtn.style.display = 'flex';
             if (swapBtn) swapBtn.style.display = 'none';
             if (walletStatus) walletStatus.style.display = 'none';
+        }
 
         // Update token displays
         this.updateTokenDisplay('from', this.fromToken);
@@ -149,14 +145,9 @@ class SwapManager {
         const logoEl = selector.querySelector('.token-logo');
         const symbolEl = selector.querySelector('.token-symbol');
 
-        if (logoEl) {
-            if (token.logo) {
-                logoEl.src = token.logo;
-                logoEl.style.display = 'block';
-            } else {
-                // UUSD special gradient logo
-                logoEl.style.display = 'none';
-            }
+        if (logoEl && token.logo) {
+            logoEl.src = token.logo;
+            logoEl.style.display = 'block';
         }
 
         if (symbolEl) {
@@ -266,25 +257,23 @@ class SwapManager {
     }
 
     swapDirection() {
+        // Swap from and to tokens
         const temp = this.fromToken;
         this.fromToken = this.toToken;
         this.toToken = temp;
 
-        const tempAmount = this.fromAmount;
-        this.fromAmount = this.toAmount;
-        this.toAmount = tempAmount;
+        // Clear amounts when swapping direction
+        this.fromAmount = '';
+        this.toAmount = '';
 
-        document.getElementById('from-amount').value = this.fromAmount;
-        document.getElementById('to-amount').value = this.toAmount;
+        document.getElementById('from-amount').value = '';
+        document.getElementById('to-amount').value = '';
+        document.getElementById('swap-details').style.display = 'none';
 
         this.updateTokenDisplay('from', this.fromToken);
         this.updateTokenDisplay('to', this.toToken);
         this.updateBalances();
         this.updateSwapButton();
-
-        if (this.fromAmount) {
-            this.getQuote();
-        }
     }
 
     toggleSettings() {
@@ -316,12 +305,50 @@ class SwapManager {
         }
     }
 
+    // Allowed trading pairs: UUSD <-> BNB/USDT/USDC
+    getAvailableTokens(side) {
+        const otherSide = side === 'from' ? this.toToken : this.fromToken;
+
+        // If the other side is UUSD, this side can be BNB/USDT/USDC
+        // If the other side is BNB/USDT/USDC, this side must be UUSD
+        if (otherSide === 'UUSD') {
+            return ['BNB', 'USDT', 'USDC'];
+        } else {
+            return ['UUSD'];
+        }
+    }
+
     openTokenModal(side) {
         this.selectingSide = side;
         const modal = document.getElementById('token-modal');
-        if (modal) {
-            modal.classList.add('active');
-        }
+        const tokenList = document.getElementById('token-list');
+
+        if (!modal || !tokenList) return;
+
+        // Get available tokens for this side
+        const availableTokens = this.getAvailableTokens(side);
+
+        // Populate token list
+        tokenList.innerHTML = availableTokens.map(tokenKey => {
+            const token = TOKENS[tokenKey];
+            const logoSrc = token.logo || 'assets/logo.png';
+            return `
+                <div class="token-list-item" data-token="${tokenKey}">
+                    <img src="${logoSrc}" alt="${token.symbol}">
+                    <div class="token-list-info">
+                        <div class="token-list-name">${token.symbol}</div>
+                        <div class="token-list-fullname">${token.name}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Re-bind click events
+        tokenList.querySelectorAll('.token-list-item').forEach(item => {
+            item.addEventListener('click', (e) => this.selectToken(e.currentTarget.dataset.token));
+        });
+
+        modal.classList.add('active');
     }
 
     closeTokenModal() {
@@ -336,17 +363,25 @@ class SwapManager {
         if (!this.selectingSide) return;
 
         if (this.selectingSide === 'from') {
-            if (tokenKey === this.toToken) {
-                // Swap tokens
-                this.toToken = this.fromToken;
-            }
             this.fromToken = tokenKey;
-        } else {
-            if (tokenKey === this.fromToken) {
-                // Swap tokens
-                this.fromToken = this.toToken;
+            // Ensure the other side is valid
+            if (tokenKey === 'UUSD') {
+                if (!['BNB', 'USDT', 'USDC'].includes(this.toToken)) {
+                    this.toToken = 'USDT';
+                }
+            } else {
+                this.toToken = 'UUSD';
             }
+        } else {
             this.toToken = tokenKey;
+            // Ensure the other side is valid
+            if (tokenKey === 'UUSD') {
+                if (!['BNB', 'USDT', 'USDC'].includes(this.fromToken)) {
+                    this.fromToken = 'USDT';
+                }
+            } else {
+                this.fromToken = 'UUSD';
+            }
         }
 
         this.updateTokenDisplay('from', this.fromToken);

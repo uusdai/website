@@ -24,7 +24,7 @@
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
     <!-- Styles -->
     <link rel="stylesheet" href="css/style.css">
@@ -35,14 +35,14 @@
         <nav class="container">
             <a href="/" class="logo">
                 <img src="assets/logo.png" alt="UUSD Logo">
-                <span class="logo-text">UNITY <span>USD</span></span>
+                <span class="logo-text">UUSD</span>
             </a>
 
             <ul class="nav-links">
                 <li><a href="#features">Features</a></li>
                 <li><a href="#contract">Contract</a></li>
                 <li><a href="#swap">Get UUSD</a></li>
-                <li><a href="https://github.com/uusdai/uusd/blob/main/docs/whitepaper.pdf" target="_blank">Docs</a></li>
+                <li><a href="https://uusd.ai/whitepaper.pdf" target="_blank">Docs</a></li>
                 <li><a href="https://github.com/uusdai/uusd" target="_blank">GitHub</a></li>
             </ul>
 
@@ -61,22 +61,13 @@
     <main>
         <!-- Hero Section -->
         <section class="hero">
+            <canvas id="hero-canvas"></canvas>
             <div class="corner-decoration corner-tl"></div>
             <div class="corner-decoration corner-tr"></div>
             <div class="corner-decoration corner-bl"></div>
             <div class="corner-decoration corner-br"></div>
 
             <div class="hero-content">
-                <img src="assets/logo.png" alt="UUSD" class="hero-logo">
-
-                <div class="hero-badge">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"/>
-                        <path d="M12 6v6l4 2"/>
-                    </svg>
-                    AI-Native Settlement Layer
-                </div>
-
                 <h1>The Settlement Layer<br>for <span class="highlight">AI Economy</span></h1>
 
                 <p class="hero-subtitle">
@@ -84,47 +75,8 @@
                 </p>
 
                 <div class="hero-buttons">
-                    <a href="#swap" class="btn btn-primary">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-                        </svg>
-                        Get UUSD
-                    </a>
-                    <a href="https://github.com/uusdai/uusd/blob/main/docs/whitepaper.pdf" target="_blank" class="btn btn-secondary">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                            <polyline points="14 2 14 8 20 8"/>
-                            <line x1="16" y1="13" x2="8" y2="13"/>
-                            <line x1="16" y1="17" x2="8" y2="17"/>
-                        </svg>
-                        Read Whitepaper
-                    </a>
-                </div>
-            </div>
-        </section>
-
-        <!-- Stats Section -->
-        <section class="stats-section">
-            <div class="container">
-                <div class="stats-grid">
-                    <div class="stat-item fade-in">
-                        <div class="stat-value">1B</div>
-                        <div class="stat-label">Total Supply</div>
-                    </div>
-                    <div class="stat-item fade-in">
-                        <div class="stat-value">18</div>
-                        <div class="stat-label">Decimals</div>
-                    </div>
-                    <div class="stat-item fade-in">
-                        <div class="stat-badge">
-                            Verified Contract
-                        </div>
-                        <div class="stat-label">BSCScan</div>
-                    </div>
-                    <div class="stat-item fade-in">
-                        <div class="stat-value">Multi-Chain</div>
-                        <div class="stat-label">BSC, ETH, Base</div>
-                    </div>
+                    <a href="#swap" class="btn btn-primary">Get UUSD</a>
+                    <a href="https://uusd.ai/whitepaper.pdf" target="_blank" class="btn btn-secondary">WHITEPAPER</a>
                 </div>
             </div>
         </section>
@@ -297,8 +249,8 @@
                             <div class="token-input-row">
                                 <input type="number" id="from-amount" class="token-input" placeholder="0.0" min="0" step="any">
                                 <button id="from-token-selector" class="token-selector">
-                                    <img class="token-logo" src="https://cryptologos.cc/logos/bnb-bnb-logo.png" alt="BNB">
-                                    <span class="token-symbol">BNB</span>
+                                    <img class="token-logo" src="https://cryptologos.cc/logos/tether-usdt-logo.png" alt="USDT">
+                                    <span class="token-symbol">USDT</span>
                                     <svg class="token-dropdown" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <polyline points="6 9 12 15 18 9"/>
                                     </svg>
@@ -325,7 +277,7 @@
                             <div class="token-input-row">
                                 <input type="number" id="to-amount" class="token-input" placeholder="0.0" readonly>
                                 <button id="to-token-selector" class="token-selector">
-                                    <img class="token-logo" src="assets/logo.png" alt="UUSD" style="background: #f5f1e3;">
+                                    <img class="token-logo" src="assets/logo.png" alt="UUSD">
                                     <span class="token-symbol">UUSD</span>
                                     <svg class="token-dropdown" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <polyline points="6 9 12 15 18 9"/>
@@ -390,35 +342,8 @@
                     </svg>
                 </button>
             </div>
-            <div class="token-list">
-                <div class="token-list-item" data-token="BNB">
-                    <img src="https://cryptologos.cc/logos/bnb-bnb-logo.png" alt="BNB">
-                    <div class="token-list-info">
-                        <div class="token-list-name">BNB</div>
-                        <div class="token-list-fullname">BNB</div>
-                    </div>
-                </div>
-                <div class="token-list-item" data-token="BUSD">
-                    <img src="https://cryptologos.cc/logos/binance-usd-busd-logo.png" alt="BUSD">
-                    <div class="token-list-info">
-                        <div class="token-list-name">BUSD</div>
-                        <div class="token-list-fullname">Binance USD</div>
-                    </div>
-                </div>
-                <div class="token-list-item" data-token="USDT">
-                    <img src="https://cryptologos.cc/logos/tether-usdt-logo.png" alt="USDT">
-                    <div class="token-list-info">
-                        <div class="token-list-name">USDT</div>
-                        <div class="token-list-fullname">Tether USD</div>
-                    </div>
-                </div>
-                <div class="token-list-item" data-token="UUSD">
-                    <img src="assets/logo.png" alt="UUSD" style="background: #f5f1e3; padding: 2px;">
-                    <div class="token-list-info">
-                        <div class="token-list-name">UUSD</div>
-                        <div class="token-list-fullname">Unity USD</div>
-                    </div>
-                </div>
+            <div class="token-list" id="token-list">
+                <!-- Tokens will be populated dynamically -->
             </div>
         </div>
     </div>
@@ -429,11 +354,11 @@
             <div class="footer-content">
                 <div class="footer-logo">
                     <img src="assets/logo.png" alt="UUSD Logo">
-                    <span class="footer-logo-text">UNITY <span>USD</span></span>
+                    <span class="footer-logo-text">UUSD</span>
                 </div>
                 <div class="footer-links">
                     <a href="https://bitcointalk.org/index.php?topic=5564031.msg65989162" target="_blank">Genesis</a>
-                    <a href="https://github.com/uusdai/uusd/blob/main/docs/whitepaper.pdf" target="_blank">Whitepaper</a>
+                    <a href="https://uusd.ai/whitepaper.pdf" target="_blank">Whitepaper</a>
                     <a href="https://github.com/uusdai/uusd" target="_blank">GitHub</a>
                     <a href="https://twitter.com/UUSDai" target="_blank">Twitter</a>
                 </div>
@@ -465,8 +390,15 @@
     <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.9.0/ethers.umd.min.js"></script>
     <script src="js/animations.js"></script>
+    <script src="js/hero-animation.js"></script>
     <script src="js/wallet.js"></script>
     <script src="js/swap.js"></script>
     <script src="js/app.js"></script>
+    <script>
+        // Initialize hero animation
+        document.addEventListener('DOMContentLoaded', () => {
+            new HeroAnimation('hero-canvas');
+        });
+    </script>
 </body>
 </html>
