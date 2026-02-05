@@ -2,12 +2,72 @@
 // UUSD Website - PancakeSwap Integration
 // =====================================================
 
-// PancakeSwap Router ABI (minimal)
-const ROUTER_ABI = [
-    'function getAmountsOut(uint amountIn, address[] memory path) public view returns (uint[] memory amounts)',
-    'function swapExactETHForTokens(uint amountOutMin, address[] calldata path, address to, uint deadline) external payable returns (uint[] memory amounts)',
-    'function swapExactTokensForTokens(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline) external returns (uint[] memory amounts)',
-    'function swapExactTokensForETH(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline) external returns (uint[] memory amounts)'
+// =====================================================
+// PancakeSwap Infinity (LBAMM) Swap Flow
+//
+// We execute swaps via:
+// - PancakeSwap Infinity Universal Router (BSC mainnet):
+//   https://developer.pancakeswap.finance/contracts/universal-router/addresses
+// - PancakeSwap Permit2 (BSC mainnet):
+//   https://developer.pancakeswap.finance/contracts/permit2/addresses
+// - Infinity BinQuoter / BinPoolManager:
+//   https://developer.pancakeswap.finance/contracts/infinity/resources/addresses
+//
+// Commands (Universal Router):
+//   https://github.com/pancakeswap/infinity-universal-router/blob/main/src/libraries/Commands.sol
+// Actions (Infinity):
+//   https://github.com/pancakeswap/infinity-periphery/blob/main/src/libraries/Actions.sol
+// =====================================================
+
+// Universal Router ABI (minimal)
+const UNIVERSAL_ROUTER_ABI = [
+    'function execute(bytes commands, bytes[] inputs, uint256 deadline) external payable'
+];
+
+// Permit2 ABI (minimal)
+const PERMIT2_ABI = [
+    'function allowance(address user, address token, address spender) external view returns (uint160 amount, uint48 expiration, uint48 nonce)'
+];
+
+// Infinity BinPoolManager ABI (minimal)
+const BIN_POOL_MANAGER_ABI = [
+    'function getSlot0(bytes32 id) external view returns (uint24 activeId, uint24 protocolFee, uint24 lpFee)'
+];
+
+// Infinity BinQuoter ABI (minimal)
+const BIN_QUOTER_ABI = [
+    {
+        type: 'function',
+        name: 'quoteExactInputSingle',
+        stateMutability: 'nonpayable',
+        inputs: [
+            {
+                name: 'params',
+                type: 'tuple',
+                components: [
+                    {
+                        name: 'poolKey',
+                        type: 'tuple',
+                        components: [
+                            { name: 'currency0', type: 'address' },
+                            { name: 'currency1', type: 'address' },
+                            { name: 'hooks', type: 'address' },
+                            { name: 'poolManager', type: 'address' },
+                            { name: 'fee', type: 'uint24' },
+                            { name: 'parameters', type: 'bytes32' }
+                        ]
+                    },
+                    { name: 'zeroForOne', type: 'bool' },
+                    { name: 'exactAmount', type: 'uint128' },
+                    { name: 'hookData', type: 'bytes' }
+                ]
+            }
+        ],
+        outputs: [
+            { name: 'amountOut', type: 'uint256' },
+            { name: 'gasEstimate', type: 'uint256' }
+        ]
+    }
 ];
 
 // ERC20 ABI (minimal)
@@ -17,9 +77,21 @@ const ERC20_ABI = [
     'function balanceOf(address account) view returns (uint256)'
 ];
 
+// Universal Router command ids
+const COMMANDS = {
+    PERMIT2_PERMIT: 0x0a,
+    INFI_SWAP: 0x10
+};
+
+// Infinity action ids
+const ACTIONS = {
+    SETTLE_ALL: 0x0c,
+    TAKE_ALL: 0x0f,
+    BIN_SWAP_EXACT_IN_SINGLE: 0x1c
+};
+
 class SwapManager {
     constructor() {
-        this.router = null;
         this.slippage = 0.5; // 0.5%
         this.deadline = 20; // 20 minutes
 
@@ -28,10 +100,15 @@ class SwapManager {
         this.fromAmount = '';
         this.toAmount = '';
         this.priceImpact = 0;
-        this.route = [];
+        this.route = []; // legacy field (Infinity swap doesn't use V2 path arrays)
 
         this.isLoading = false;
         this.quoteTimeout = null;
+
+        // Infinity LBAMM pool cache
+        this.poolId = CONTRACTS.UUSD_LB_POOL_ID;
+        this.poolKey = null;   // {currency0,currency1,hooks,poolManager,fee,parameters}
+        this.poolMeta = null;  // {binStep, lpFee, activeId, protocolFee}
     }
 
     init() {
@@ -204,36 +281,42 @@ class SwapManager {
             this.isLoading = true;
             toAmountInput.value = 'Loading...';
 
-            // Get provider (can work without wallet connected)
-            const provider = wallet.provider || new ethers.JsonRpcProvider('https://bsc-dataseed.binance.org/');
-            const router = new ethers.Contract(CONTRACTS.PANCAKE_ROUTER, ROUTER_ABI, provider);
+            // Only support swaps against the UUSD/USDT LBAMM pool for now
+            if (!this.isSupportedPair()) {
+                throw new Error('Only USDT <-> UUSD is supported on this page currently.');
+            }
 
-            // Build path
+            const provider = wallet.provider || new ethers.JsonRpcProvider('https://bsc-dataseed.binance.org/');
+            await this.resolveInfinityPool(provider);
+
             const fromToken = TOKENS[this.fromToken];
             const toToken = TOKENS[this.toToken];
 
-            let path = [];
-            if (this.fromToken === 'BNB') {
-                path = [CONTRACTS.WBNB, toToken.address];
-            } else if (this.toToken === 'BNB') {
-                path = [fromToken.address, CONTRACTS.WBNB];
-            } else {
-                // Route through WBNB
-                path = [fromToken.address, CONTRACTS.WBNB, toToken.address];
-            }
+            const amountIn = this.parseUnitsSafe(this.fromAmount, fromToken.decimals);
 
-            const amountIn = ethers.parseEther(this.fromAmount);
-            const amounts = await router.getAmountsOut(amountIn, path);
-            const amountOut = ethers.formatEther(amounts[amounts.length - 1]);
+            const binQuoter = new ethers.Contract(CONTRACTS.INFI_BIN_QUOTER, BIN_QUOTER_ABI, provider);
+            const zeroForOne = this.isZeroForOne(fromToken.address);
 
-            this.toAmount = amountOut;
-            this.route = path;
+            // NOTE: BinQuoter functions are nonpayable (not "view") but are intended to be called via eth_call.
+            // In ethers v6, calling a non-view function defaults to sending a transaction unless we use staticCall().
+            const quoteFn = binQuoter.getFunction('quoteExactInputSingle');
+            const [amountOut] = await quoteFn.staticCall({
+                poolKey: this.poolKey,
+                zeroForOne,
+                exactAmount: this.toUint128(amountIn),
+                hookData: '0x'
+            });
 
-            toAmountInput.value = parseFloat(amountOut).toFixed(6);
+            const amountOutFormatted = ethers.formatUnits(amountOut, toToken.decimals);
 
-            // Calculate price impact (simplified)
-            const rate = parseFloat(amountOut) / parseFloat(this.fromAmount);
-            this.priceImpact = 0; // Would need pool reserves for accurate calculation
+            this.toAmount = amountOutFormatted;
+            this.route = [];
+
+            toAmountInput.value = parseFloat(amountOutFormatted).toFixed(6);
+
+            // Calculate rate (simple)
+            const rate = parseFloat(amountOutFormatted) / parseFloat(this.fromAmount);
+            this.priceImpact = 0;
 
             // Update swap details
             if (swapDetails) {
@@ -241,7 +324,7 @@ class SwapManager {
                 document.getElementById('swap-rate').textContent =
                     `1 ${this.fromToken} = ${rate.toFixed(6)} ${this.toToken}`;
                 document.getElementById('min-received').textContent =
-                    `${(parseFloat(amountOut) * (1 - this.slippage / 100)).toFixed(6)} ${this.toToken}`;
+                    `${(parseFloat(amountOutFormatted) * (1 - this.slippage / 100)).toFixed(6)} ${this.toToken}`;
                 document.getElementById('price-impact').textContent =
                     `< 0.01%`;
             }
@@ -305,17 +388,13 @@ class SwapManager {
         }
     }
 
-    // Allowed trading pairs: UUSD <-> BNB/USDT/USDC
+    // Allowed trading pairs (current implementation): UUSD <-> USDT (LBAMM pool)
     getAvailableTokens(side) {
         const otherSide = side === 'from' ? this.toToken : this.fromToken;
 
-        // If the other side is UUSD, this side can be BNB/USDT/USDC
-        // If the other side is BNB/USDT/USDC, this side must be UUSD
-        if (otherSide === 'UUSD') {
-            return ['BNB', 'USDT', 'USDC'];
-        } else {
-            return ['UUSD'];
-        }
+        if (otherSide === 'UUSD') return ['USDT'];
+        if (otherSide === 'USDT') return ['UUSD'];
+        return side === 'from' ? ['USDT'] : ['UUSD'];
     }
 
     openTokenModal(side) {
@@ -365,23 +444,13 @@ class SwapManager {
         if (this.selectingSide === 'from') {
             this.fromToken = tokenKey;
             // Ensure the other side is valid
-            if (tokenKey === 'UUSD') {
-                if (!['BNB', 'USDT', 'USDC'].includes(this.toToken)) {
-                    this.toToken = 'USDT';
-                }
-            } else {
-                this.toToken = 'UUSD';
-            }
+            if (tokenKey === 'UUSD') this.toToken = 'USDT';
+            if (tokenKey === 'USDT') this.toToken = 'UUSD';
         } else {
             this.toToken = tokenKey;
             // Ensure the other side is valid
-            if (tokenKey === 'UUSD') {
-                if (!['BNB', 'USDT', 'USDC'].includes(this.fromToken)) {
-                    this.fromToken = 'USDT';
-                }
-            } else {
-                this.fromToken = 'UUSD';
-            }
+            if (tokenKey === 'UUSD') this.fromToken = 'USDT';
+            if (tokenKey === 'USDT') this.fromToken = 'UUSD';
         }
 
         this.updateTokenDisplay('from', this.fromToken);
@@ -446,7 +515,7 @@ class SwapManager {
             return;
         }
 
-        if (!this.fromAmount || !this.toAmount || !this.route.length) {
+        if (!this.fromAmount || !this.toAmount) {
             return;
         }
 
@@ -454,54 +523,115 @@ class SwapManager {
             swapBtn.disabled = true;
             swapBtn.innerHTML = '<span class="spinner"></span> Processing...';
 
-            const router = new ethers.Contract(CONTRACTS.PANCAKE_ROUTER, ROUTER_ABI, wallet.signer);
-            const amountIn = ethers.parseEther(this.fromAmount);
-            const amountOutMin = ethers.parseEther(
-                (parseFloat(this.toAmount) * (1 - this.slippage / 100)).toString()
-            );
+            if (!this.isSupportedPair()) {
+                throw new Error('Only USDT <-> UUSD is supported on this page currently.');
+            }
+
+            const provider = wallet.provider;
+            await this.resolveInfinityPool(provider);
+
+            const fromToken = TOKENS[this.fromToken];
+            const toToken = TOKENS[this.toToken];
+
+            const amountIn = this.parseUnitsSafe(this.fromAmount, fromToken.decimals);
+            const quotedOut = this.parseUnitsSafe(this.toAmount, toToken.decimals);
+            const amountOutMin = this.applySlippage(quotedOut, this.slippage);
+
             const deadline = Math.floor(Date.now() / 1000) + (this.deadline * 60);
 
-            let tx;
+            // 1) Ensure ERC20 approval to Permit2 (one-time per token)
+            showTxStatus('pending', 'Approving token for Permit2 (if needed)...');
+            await this.ensurePermit2TokenApproval(fromToken.address, amountIn);
 
-            if (this.fromToken === 'BNB') {
-                // Swap BNB for tokens
-                showTxStatus('pending', 'Waiting for confirmation...');
-                tx = await router.swapExactETHForTokens(
-                    amountOutMin,
-                    this.route,
-                    wallet.address,
-                    deadline,
-                    { value: amountIn }
-                );
-            } else if (this.toToken === 'BNB') {
-                // Swap tokens for BNB
-                // First approve
-                showTxStatus('pending', 'Approving tokens...');
-                await this.approveToken(TOKENS[this.fromToken].address, amountIn);
+            // 2) Build Permit2 permit signature for Universal Router
+            showTxStatus('pending', 'Signing Permit2 message...');
+            const permit2 = new ethers.Contract(CONTRACTS.PERMIT2, PERMIT2_ABI, provider);
+            const permitState = await permit2.allowance(wallet.address, fromToken.address, CONTRACTS.INFINITY_UNIVERSAL_ROUTER);
+            const nonce = permitState.nonce;
 
-                showTxStatus('pending', 'Waiting for confirmation...');
-                tx = await router.swapExactTokensForETH(
-                    amountIn,
-                    amountOutMin,
-                    this.route,
-                    wallet.address,
-                    deadline
-                );
-            } else {
-                // Swap tokens for tokens
-                // First approve
-                showTxStatus('pending', 'Approving tokens...');
-                await this.approveToken(TOKENS[this.fromToken].address, amountIn);
+            const expiration = this.toUint48(deadline); // short lived
+            const sigDeadline = BigInt(deadline);
 
-                showTxStatus('pending', 'Waiting for confirmation...');
-                tx = await router.swapExactTokensForTokens(
-                    amountIn,
-                    amountOutMin,
-                    this.route,
-                    wallet.address,
-                    deadline
-                );
-            }
+            const permitSingle = {
+                details: {
+                    token: fromToken.address,
+                    amount: this.toUint160(amountIn),
+                    expiration,
+                    nonce
+                },
+                spender: CONTRACTS.INFINITY_UNIVERSAL_ROUTER,
+                sigDeadline
+            };
+
+            const domain = {
+                name: 'Permit2',
+                chainId: 56, // BSC mainnet
+                verifyingContract: CONTRACTS.PERMIT2
+            };
+            const types = {
+                PermitDetails: [
+                    { name: 'token', type: 'address' },
+                    { name: 'amount', type: 'uint160' },
+                    { name: 'expiration', type: 'uint48' },
+                    { name: 'nonce', type: 'uint48' }
+                ],
+                PermitSingle: [
+                    { name: 'details', type: 'PermitDetails' },
+                    { name: 'spender', type: 'address' },
+                    { name: 'sigDeadline', type: 'uint256' }
+                ]
+            };
+
+            const signature = await wallet.signer.signTypedData(domain, types, permitSingle);
+
+            const abi = ethers.AbiCoder.defaultAbiCoder();
+            const permitInput = abi.encode(
+                [
+                    'tuple(tuple(address token,uint160 amount,uint48 expiration,uint48 nonce) details,address spender,uint256 sigDeadline)',
+                    'bytes'
+                ],
+                [permitSingle, signature]
+            );
+
+            // 3) Build INFI_SWAP payload (BIN_SWAP_EXACT_IN_SINGLE + SETTLE_ALL + TAKE_ALL)
+            const swapForY = this.isZeroForOne(fromToken.address);
+            const inputCurrency = swapForY ? this.poolKey.currency0 : this.poolKey.currency1;
+            const outputCurrency = swapForY ? this.poolKey.currency1 : this.poolKey.currency0;
+
+            const swapActionParam = abi.encode(
+                [
+                    'tuple(tuple(address currency0,address currency1,address hooks,address poolManager,uint24 fee,bytes32 parameters) poolKey,bool swapForY,uint128 amountIn,uint128 amountOutMinimum,bytes hookData)'
+                ],
+                [{
+                    poolKey: this.poolKey,
+                    swapForY,
+                    amountIn: this.toUint128(amountIn),
+                    amountOutMinimum: this.toUint128(amountOutMin),
+                    hookData: '0x'
+                }]
+            );
+
+            const settleAllParam = abi.encode(['address', 'uint256'], [inputCurrency, ethers.MaxUint256]);
+            const takeAllParam = abi.encode(['address', 'uint256'], [outputCurrency, 0n]);
+
+            const actionsBytes = ethers.concat([
+                ethers.toBeHex(ACTIONS.BIN_SWAP_EXACT_IN_SINGLE, 1),
+                ethers.toBeHex(ACTIONS.SETTLE_ALL, 1),
+                ethers.toBeHex(ACTIONS.TAKE_ALL, 1)
+            ]);
+
+            const infiPayload = abi.encode(['bytes', 'bytes[]'], [actionsBytes, [swapActionParam, settleAllParam, takeAllParam]]);
+
+            // 4) Execute via Infinity Universal Router
+            const commands = ethers.concat([
+                ethers.toBeHex(COMMANDS.PERMIT2_PERMIT, 1),
+                ethers.toBeHex(COMMANDS.INFI_SWAP, 1)
+            ]);
+
+            const universalRouter = new ethers.Contract(CONTRACTS.INFINITY_UNIVERSAL_ROUTER, UNIVERSAL_ROUTER_ABI, wallet.signer);
+
+            showTxStatus('pending', 'Waiting for confirmation...');
+            const tx = await universalRouter.execute(commands, [permitInput, infiPayload], deadline);
 
             showTxStatus('pending', `Transaction submitted: ${tx.hash.slice(0, 10)}...`);
 
@@ -526,28 +656,133 @@ class SwapManager {
 
         } catch (error) {
             console.error('Swap error:', error);
-            let message = 'Transaction failed';
-            if (error.code === 'ACTION_REJECTED') {
-                message = 'Transaction rejected by user';
-            } else if (error.message) {
-                message = error.message.slice(0, 100);
-            }
-            showTxStatus('error', message);
+            showTxStatus('error', getShortErrorMessage(error));
         } finally {
             this.updateSwapButton();
         }
     }
 
-    async approveToken(tokenAddress, amount) {
-        const token = new ethers.Contract(tokenAddress, ERC20_ABI, wallet.signer);
+    // =====================================================
+    // Infinity helpers
+    // =====================================================
 
-        // Check current allowance
-        const allowance = await token.allowance(wallet.address, CONTRACTS.PANCAKE_ROUTER);
+    isSupportedPair() {
+        return (
+            (this.fromToken === 'USDT' && this.toToken === 'UUSD') ||
+            (this.fromToken === 'UUSD' && this.toToken === 'USDT')
+        );
+    }
 
-        if (allowance < amount) {
-            const tx = await token.approve(CONTRACTS.PANCAKE_ROUTER, ethers.MaxUint256);
-            await tx.wait();
+    isZeroForOne(fromTokenAddress) {
+        if (!this.poolKey) return false;
+        return fromTokenAddress.toLowerCase() === this.poolKey.currency0.toLowerCase();
+    }
+
+    async resolveInfinityPool(provider) {
+        if (this.poolKey && this.poolMeta) return;
+
+        const hooks = ethers.ZeroAddress;
+        const poolManager = CONTRACTS.INFI_BIN_POOL_MANAGER;
+
+        const tokenA = TOKENS.USDT.address;
+        const tokenB = TOKENS.UUSD.address;
+        const [currency0, currency1] = this.sortAddresses(tokenA, tokenB);
+
+        const binPoolManager = new ethers.Contract(CONTRACTS.INFI_BIN_POOL_MANAGER, BIN_POOL_MANAGER_ABI, provider);
+        const [activeId, protocolFee, lpFee] = await binPoolManager.getSlot0(this.poolId);
+
+        const fee = BigInt(lpFee);
+        const recovered = this.recoverBinStepAndParameters(this.poolId, {
+            currency0,
+            currency1,
+            hooks,
+            poolManager,
+            fee
+        });
+
+        if (!recovered) {
+            throw new Error('Failed to resolve LBAMM pool parameters (binStep). Please verify poolId / token pair.');
         }
+
+        // Note: ethers will properly encode uint24 from a JS number; lpFee fits in uint24.
+        this.poolKey = {
+            currency0,
+            currency1,
+            hooks,
+            poolManager,
+            fee: Number(fee),
+            parameters: recovered.parameters
+        };
+
+        this.poolMeta = {
+            binStep: recovered.binStep,
+            activeId,
+            protocolFee,
+            lpFee
+        };
+    }
+
+    recoverBinStepAndParameters(poolId, { currency0, currency1, hooks, poolManager, fee }) {
+        const abi = ethers.AbiCoder.defaultAbiCoder();
+        for (let binStep = 1; binStep <= 100; binStep++) {
+            // BinPoolParametersHelper: binStep stored at bit offset 16
+            const parameters = ethers.toBeHex(BigInt(binStep) << 16n, 32);
+            const encoded = abi.encode(
+                ['address', 'address', 'address', 'address', 'uint24', 'bytes32'],
+                [currency0, currency1, hooks, poolManager, fee, parameters]
+            );
+            const candidateId = ethers.keccak256(encoded);
+            if (candidateId.toLowerCase() === poolId.toLowerCase()) {
+                return { binStep, parameters };
+            }
+        }
+        return null;
+    }
+
+    sortAddresses(a, b) {
+        const aa = BigInt(a.toLowerCase());
+        const bb = BigInt(b.toLowerCase());
+        return aa < bb ? [a, b] : [b, a];
+    }
+
+    parseUnitsSafe(amountStr, decimals) {
+        const trimmed = (amountStr ?? '').toString().trim();
+        if (!trimmed) return 0n;
+        return ethers.parseUnits(trimmed, decimals);
+    }
+
+    applySlippage(amountOut, slippagePct) {
+        // slippagePct is percent (e.g. 0.5 => 0.5%)
+        const bps = BigInt(Math.round(Number(slippagePct) * 100)); // 0.01% resolution
+        const denom = 10000n;
+        const factor = denom - bps;
+        return (amountOut * factor) / denom;
+    }
+
+    toUint48(v) {
+        const x = BigInt(v);
+        if (x < 0n || x > (1n << 48n) - 1n) throw new Error('uint48 overflow');
+        return x;
+    }
+
+    toUint160(v) {
+        const x = BigInt(v);
+        if (x < 0n || x > (1n << 160n) - 1n) throw new Error('uint160 overflow');
+        return x;
+    }
+
+    toUint128(v) {
+        const x = BigInt(v);
+        if (x < 0n || x > (1n << 128n) - 1n) throw new Error('uint128 overflow');
+        return x;
+    }
+
+    async ensurePermit2TokenApproval(tokenAddress, amount) {
+        const token = new ethers.Contract(tokenAddress, ERC20_ABI, wallet.signer);
+        const allowance = await token.allowance(wallet.address, CONTRACTS.PERMIT2);
+        if (allowance >= amount) return;
+        const tx = await token.approve(CONTRACTS.PERMIT2, ethers.MaxUint256);
+        await tx.wait();
     }
 }
 
@@ -557,7 +792,13 @@ function showTxStatus(status, message) {
     if (!txStatus) return;
 
     txStatus.className = `tx-status ${status}`;
-    txStatus.innerHTML = message;
+    // For error/pending, avoid dumping large payloads / HTML; keep it plain text.
+    // Success messages may include a link.
+    if (status === 'success') {
+        txStatus.innerHTML = message;
+    } else {
+        txStatus.textContent = message;
+    }
     txStatus.style.display = 'block';
 
     if (status === 'success' || status === 'error') {
@@ -566,6 +807,46 @@ function showTxStatus(status, message) {
             txStatus.style.display = 'none';
         }, 10000);
     }
+}
+
+// Extract the most relevant message from ethers/MetaMask errors.
+function getShortErrorMessage(error) {
+    // Standard user rejection codes
+    if (error?.code === 'ACTION_REJECTED' || error?.code === 4001) {
+        return '用户拒绝了请求';
+    }
+
+    const candidates = [
+        error?.info?.error?.message,
+        error?.error?.message,
+        error?.data?.message,
+        error?.reason,
+        error?.shortMessage,
+        error?.message
+    ];
+
+    let msg = candidates.find((m) => typeof m === 'string' && m.trim());
+    if (!msg) return '交易失败';
+
+    msg = msg.trim();
+
+    // If we only got the outer "could not coalesce error" string, try to pull inner message.
+    // Example: could not coalesce error (error={ "code": -32603, "message": "user reject this request" }, ...)
+    if (msg.toLowerCase().includes('could not coalesce error')) {
+        const match = msg.match(/"message"\s*:\s*"([^"]+)"/i);
+        if (match?.[1]) msg = match[1];
+    }
+
+    msg = msg.replace(/^execution reverted:\s*/i, '').trim();
+
+    const lower = msg.toLowerCase();
+    if (lower.includes('user reject') || lower.includes('user rejected')) return '用户拒绝了请求';
+    if (lower.includes('insufficient funds')) return '余额不足以支付 Gas';
+    if (lower.includes('nonce too low')) return 'Nonce 太低（请稍后重试）';
+
+    // Keep it short for UI
+    if (msg.length > 140) msg = msg.slice(0, 140);
+    return msg;
 }
 
 // Create global swap manager instance

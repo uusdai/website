@@ -19,11 +19,26 @@ const BSC_CONFIG = {
 // Contract Addresses
 const CONTRACTS = {
     UUSD: '0x61a10E8556BEd032eA176330e7F17D6a12a10000',
+    // Legacy PancakeSwap V2 Router (kept for reference; Swap page now uses Infinity Universal Router)
     PANCAKE_ROUTER: '0x10ED43C718714eb63d5aA57B78B54704E256024E',
     WBNB: '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c',
     BUSD: '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56',
     USDT: '0x55d398326f99059fF775485246999027B3197955',
-    USDC: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d'
+    USDC: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
+
+    // PancakeSwap Infinity (Liquidity Book / LBAMM) - official addresses
+    // Source: https://developer.pancakeswap.finance/contracts/universal-router/addresses
+    INFINITY_UNIVERSAL_ROUTER: '0xd9C500DfF816a1Da21A48A732d3498Bf09dc9AEB',
+    // Source: https://developer.pancakeswap.finance/contracts/permit2/addresses
+    PERMIT2: '0x31c2F6fcFf4F8759b3Bd5Bf0e1084A055615c768',
+    // Source: https://developer.pancakeswap.finance/contracts/infinity/resources/addresses
+    INFI_VAULT: '0x238a358808379702088667322f80aC48bAd5e6c4',
+    INFI_BIN_POOL_MANAGER: '0xC697d2898e0D09264376196696c51D7aBbbAA4a9',
+    INFI_BIN_QUOTER: '0xC631f4B0Fc2Dd68AD45f74B2942628db117dD359',
+
+    // UUSD LBAMM PoolId (Infinity Bin pool)
+    // Pool page: https://pancakeswap.finance/liquidity/pool/bsc/0xbe4d8fc01cd8287417afe5a709417327406f2f6bb43fa3bf190b5f38721df066
+    UUSD_LB_POOL_ID: '0xbe4d8fc01cd8287417afe5a709417327406f2f6bb43fa3bf190b5f38721df066'
 };
 
 // Token configurations
