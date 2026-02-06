@@ -18,8 +18,11 @@
     <meta name="twitter:title" content="UUSD - Settlement for Humans and AI">
     <meta name="twitter:description" content="A USD-pegged settlement unit designed for both humans and autonomous agents">
 
-    <!-- Favicon -->
-    <link rel="icon" type="image/png" href="assets/logo.png">
+    <!-- Favicon (cache-busted) -->
+    <!-- Note: favicons are often cached aggressively; changing URL helps avoid requiring hard refresh -->
+    <link rel="icon" type="image/svg+xml" href="assets/logo32.svg?v=20260205">
+    <link rel="icon" type="image/png" href="assets/logo.png?v=20260205">
+    <link rel="apple-touch-icon" href="assets/logo.png?v=20260205">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -34,7 +37,7 @@
     <header>
         <nav class="container">
             <a href="/" class="logo">
-                <img src="assets/logo.svg" alt="Unity USD">
+                <img src="assets/logo.svg?v=20260205" alt="Unity USD">
             </a>
 
             <ul class="nav-links">
@@ -320,7 +323,7 @@
                             <div class="token-input-row">
                                 <input type="number" id="to-amount" class="token-input" placeholder="0.0" readonly>
                                 <button id="to-token-selector" class="token-selector">
-                                    <img class="token-logo" src="assets/logo.png" alt="UUSD">
+                                    <img class="token-logo" src="assets/logo.png?v=20260205" alt="UUSD">
                                     <span class="token-symbol">UUSD</span>
                                     <svg class="token-dropdown" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <polyline points="6 9 12 15 18 9"/>
@@ -396,7 +399,7 @@
         <div class="container">
             <div class="footer-content">
                 <div class="footer-logo">
-                    <img src="assets/logo.svg" alt="Unity USD">
+                    <img src="assets/logo.svg?v=20260205" alt="Unity USD">
                 </div>
                 <div class="footer-links">
                     <a href="https://bitcointalk.org/index.php?topic=5564031.msg65989162" target="_blank">Genesis</a>

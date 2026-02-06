@@ -410,7 +410,7 @@ class SwapManager {
         // Populate token list
         tokenList.innerHTML = availableTokens.map(tokenKey => {
             const token = TOKENS[tokenKey];
-            const logoSrc = token.logo || 'assets/logo.png';
+            const logoSrc = token.logo || 'assets/logo.png?v=20260205';
             return `
                 <div class="token-list-item" data-token="${tokenKey}">
                     <img src="${logoSrc}" alt="${token.symbol}">

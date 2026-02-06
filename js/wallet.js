@@ -83,7 +83,8 @@ const TOKENS = {
         name: 'Unity USD',
         decimals: 18,
         address: CONTRACTS.UUSD,
-        logo: 'assets/logo.png'
+        // Cache-bust logo updates without hard refresh
+        logo: 'assets/logo.png?v=20260205'
     }
 };
 
